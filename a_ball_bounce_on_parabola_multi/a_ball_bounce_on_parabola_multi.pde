@@ -3,27 +3,15 @@
   a_ball_bounce_on_parabola_multi.pde
   
   * シミュレーションモデル  
-    - 2つの質点（質量同じ）がそれぞれ別の放物線の上を摩擦なしで滑る。
-    - 2つの放物線の方程式は以下の通り：
-       放物線1：y = +x^2 + 1
-       放物線2：y = -x^2 - 1
-    - 2つの質点（質点1と質点2）は線形バネで連結されている。
-    - バネの自然長と質量はゼロとする。
-    - 重力の影響は無視する。  
+    - 1つの質点が重力を受けて落下する。
+    - 下方には下の放物線がある。
+        y = x^2 / 2
+    - 質点は放物線に衝突すると反射する。
   
   * 変数の定義
-    - この系の自由度は2である。
-    - 質点1のx座標をx1,x1の時間微分（=速度のx成分）をv1とする
-    - 質点2も同様。
-    - 一般化座標(x1,x2,v1,v2)をGeneralCoordsクラスにまとめた。
+    - 質点の位置を (x,y) とし、速度を(vx,vy) とする。
+    - 一般化座標(x,y,vx,vy)をGeneralCoordsクラスにまとめた。
   
-  * この系のラグランジアンは
-           L(x1,x2,v1,v2) = (m/2)*(v1^2+4*x1^2*v1^2)
-                          + (m/2)*(v2^2+4*x2^2*v2^2)
-                          - (k/2)*s^2,
-    ここで以下は作業用の変数：
-            s = sqrt(dx^2+dy^2), dx=x1-x2, dy=x1^2+x2^2+2.
-
   * シミュレーション手法
     - ラグランジュの運動方程式をequation_of_motion()関数で解く。
     - 数値積分には古典的な4次ルンゲ・クッタ法を使う。
@@ -47,8 +35,8 @@
        
   * 使用法
     - 初期条件の設定は setup()関数の以下の部分で変更する。
-        balls = new GeneralCoords( 質点1のx座標, その時間微分,
-                                   質点2のx座標, その時間微分 )
+        ball = new GeneralCoords( 質点のx座標, 速度のx成分 vx,
+                                  質点のy座標, 速度のy成分 vy )
     - キーボードのuキーで計算（表示）の加速。
     - キーボードのdキーで計算（表示）の減速。
     - キーボードのsキーで計算（表示）の一時停止(stop)と再スタート(start)。
@@ -56,12 +44,12 @@
     
   * 開発履歴
     - Akira Kageyama (kage@port.kobe-u.ac.jp)
-    - June 29, 2023
+    - July 05, 2023
   
 */
 
 
-final int VERTICAL_MARGIN = 50;
+final int VERTICAL_MARGIN = 75;
 final int HORIZONTAL_MARGIN = 5;
 
 
@@ -71,18 +59,18 @@ float dt = 0.001;
 
 boolean running_state_toggle = true;
 
-float x_coord_min = -3.0;
-float x_coord_max =  3.0;
+float x_coord_min = -2.0;
+float x_coord_max =  2.0;
+float y_coord_min = -2.0;
+float y_coord_max =  2.0; 
 
 int speed = 10;
 
-GeneralCoords balls;
-GeneralCoords balls_prev;
+GeneralCoords ball;
+GeneralCoords ball_prev;
 
-final float SPRING_K  = 1.0;
 final float PARTICLE_MASS = 1.0;
-final float OMEGA_SQ = SPRING_K/PARTICLE_MASS;
-
+final float GRAVITY_ACCELERATION = 9.8;
 
 
 class Window {
@@ -139,8 +127,6 @@ class Window {
     
     
     float mapy(float y) {
-        float y_coord_max = parabola_func_upper(x_coord_max);
-        float y_coord_min = -y_coord_max;
         float scale = (this.ymax-this.ymin)/(y_coord_max-y_coord_min);
         return -scale*y;  // reverse up/down direction.
     }
@@ -156,15 +142,15 @@ class Window {
     }
 
 
-    void draw_balls_on_xyplane(float x1,float x2) {
+    void draw_ball_on_xyplane( float x, float y ) {
       pushMatrix();
           translate_origin();
           stroke(50,100,255); 
-          point(mapx(x1),-mapx(x2));
+          point(mapx(x),mapy(y));
       popMatrix();
     }
 
-    void draw_parabolas() {
+    void draw_parabola() {
       pushMatrix();
         translate_origin();
         
@@ -173,81 +159,42 @@ class Window {
         float x, y;
     
         float x_prev = x_coord_min;
-        float y_prev = parabola_func_upper(x_prev);
+        float y_prev = parabola( x_prev );
     
         for (int i=1; i<=nx; i++) { // starts from i=1.
             x = x_coord_min + dx*i;
-            y = parabola_func_upper(x);
-            if ( i%12 <= 6 ) stroke(100,100,100);
-            else             stroke(255,255,255);
+            y = parabola( x );
+           stroke(100,100,100);
             line(mapx(x_prev),mapy(y_prev),mapx(x),mapy(y));
             x_prev = x;
             y_prev = y;
-        }
-    
-        x_prev = x_coord_min;
-        y_prev = parabola_func_lower(x_prev);
-    
-        for (int i=1; i<=nx; i++) { // starts from i=1.
-          x = x_coord_min + dx*i;
-          y = parabola_func_lower(x);
-          if ( i%12 <= 6 ) stroke(100,100,100);
-          else             stroke(255,255,255);
-          line(mapx(x_prev),mapy(y_prev),mapx(x),mapy(y));
-          x_prev = x;
-          y_prev = y;
         }
       popMatrix();
     }
     
     
-    void draw_balls_on_parabolas(float x1,float x2) {
+    void draw_the_ball(float x, float y) {
       pushMatrix();
         translate_origin();
         stroke(50); 
         fill(255,210,150);
     
-        float y1 = parabola_func_upper(x1);
-        ellipse(mapx(x1),mapy(y1),10,10);
-        
-        fill(150,230,255);
-        float y2 = parabola_func_lower(x2);
-        ellipse(mapx(x2),mapy(y2),10,10);
+        ellipse( mapx(x), mapy(y), 10, 10 );
       popMatrix();
     }
-     
+          
     
-    void draw_poincare_x1_x2(float x1, float x2) {
-      pushMatrix();
-        translate_origin();
-        stroke(255,100,100); 
-        point(mapx(x1),-mapx(x2));
-      popMatrix();
-    }
-         
-    
-    void draw_poincare_x1_v1(float x1, float v1) {
-      float factor = 0.8; // trial and errors.
+    void draw_poincare_x1_v1( float x1, float v1 ) 
+    {
+      float factor = 0.25; // trials and errors.
       pushMatrix();
         translate_origin();
         stroke( 0, 150, 0 ); 
-        point(factor*mapx(x1),-factor*mapx(v1));
+        point( mapx(x1), factor*mapy(v1) );
       popMatrix();
     }
         
     
-    void draw_spring() {
-      pushMatrix();
-        translate_origin();
-        stroke(0,150,0);
-        float x1 = balls.x1;
-        float y1 = parabola_func_upper(x1);
-        float x2 = balls.x2;
-        float y2 = parabola_func_lower(x2);
-        line(mapx(x1),mapy(y1),mapx(x2),mapy(y2));
-      popMatrix();
-    }    
-
     void label_x_axis(String msg) {
       pushMatrix();
         translate_origin();
@@ -319,36 +266,37 @@ Window[] window;
 
 
 class GeneralCoords {
-  float x1;
-  float v1;
-  float x2;
-  float v2;
+  float x;
+  float vx;
+  float y;
+  float vy;
   
-  GeneralCoords(float x1, float v1, float x2, float v2) {
-    this.x1 = x1;
-    this.v1 = v1;
-    this.x2 = x2;
-    this.v2 = v2;
+  GeneralCoords( float x, float vx, float y, float vy ) {
+    this.x  = x;
+    this.vx = vx;
+    this.y  = y;
+    this.vy = vy;
   }
   
   GeneralCoords() {
-    x1 = 0.0;
-    v1 = 0.0;
-    x2 = 0.0;
-    v2 = 0.0;
+    x  = 0.0;
+    vx = 0.0;
+    y  = 0.0;
+    vy = 0.0;
   }
   
-  GeneralCoords(GeneralCoords copy) {
-    x1 = copy.x1;
-    v1 = copy.v1;
-    x2 = copy.x2;
-    v2 = copy.v2;
+  GeneralCoords( GeneralCoords copy ) {
+    x  = copy.x;
+    vx = copy.vx;
+    y  = copy.y;
+    vy = copy.vy;
   }
 }
 
 
 
-void setup() {
+void setup() 
+{
     size(1200,600);
     background(255);
     frameRate(60);
@@ -392,58 +340,47 @@ void setup() {
     window[2] = new Window(x2l,y1,x2r,y2);
     
     window[1].draw_axes_x1_x2();
-    window[1].label_x_axis("x1");
-    window[1].label_y_axis("x2");
+    window[1].label_x_axis("x");
+    window[1].label_y_axis("y");
     window[2].draw_axes_x1_x2();
-    window[2].label_x_axis("x1");
-    window[2].label_y_axis("v1"); //<>//
+    window[2].label_x_axis("x");
+    window[2].label_y_axis("vx"); //<>//
 
  
-    header.title("  Two balls on parabolas\n  Particle 1 (upper) and 2 (lower)",LEFT);
-    header.title("  Path plot of (x1,x2)", CENTER);
-    header.title("Poincare map of (x1,v1) on v2=0  ", RIGHT);
-    
-//// 線形（微小）単振動
-//      balls = new GeneralCoords( x_coord_max*0.05,0,  // x1 & v1
-//                                 x_coord_max*0.05,0); // x2 & v2
-//// 線形（微小）振動
-//    balls = new GeneralCoords( x_coord_max*0.1,0,  // x1 & v1
-//                              -x_coord_max*0.05,0); // x2 & v2
-// 非線形単一周期運動
-    balls = new GeneralCoords( x_coord_max*0.4,0,  // x1 & v1
-                              -x_coord_max*0.4,0); // x2 & v2
-//// 比較的単純な非線形運動
-//    balls = new GeneralCoords( x_coord_max*0.4,0,  // x1 & v1
-//                              -x_coord_max*0.2,0); // x2 & v2
-//// 複雑な運動
-//    balls = new GeneralCoords( x_coord_max*0.4,0,  // x1 & v1
-//                              -x_coord_max*0.1,0); // x2 & v2
+    header.title("  A ball on parabolas",LEFT);
+    header.title("  Path plot of (x,y)", CENTER);
+    header.title("Poincare map of (x,vx) on vy=0  ", RIGHT);
 
-    balls_prev = new GeneralCoords();                             
+//    // カオス的
+//    ball = new GeneralCoords( x_coord_max*0.2, -2.2,  // x & vx
+//                              x_coord_max*0.7, -1.1); // y & vy
+//
+//    // 自由落下。カオス的
+//    ball = new GeneralCoords( x_coord_max*0.2, 0.0,  // x & vx
+//                              x_coord_max*0.7, 0.0 ); // y & vy
+//
+//    // 自由落下2。カオス的
+//    ball = new GeneralCoords( x_coord_max*0.6, 0.0,  // x & vx
+//                              x_coord_max*0.7, 0.0 ); // y & vy
+//
+    // 自由落下3。カオス的
+    ball = new GeneralCoords( x_coord_max*0.1, 0.0,  // x & vx
+                              x_coord_max*0.7, 0.0 ); // y & vy
+
+    ball_prev = new GeneralCoords();                             
 }
 
 
 float total_energy() {
-    float x1 = balls.x1;
-    float v1 = balls.v1;
-    float x2 = balls.x2;
-    float v2 = balls.v2;
+    float vx = ball.vx;
+    float vxsq = vx*vx;
+    float y  = ball.y;
+    float vy = ball.vy;
+    float vysq = vy*vy;
 
-    float v1sq = v1*v1;
-    float v2sq = v2*v2;
 
-    float y1 = parabola_func_upper(x1);
-    float y2 = parabola_func_lower(x2);
-    
-    float y1dot = parabola_func_upper_derivative(x1)*v1;
-    float y2dot = parabola_func_lower_derivative(x2)*v2;
-    float y1dotsq = y1dot*y1dot;
-    float y2dotsq = y2dot*y2dot;
-    
-    float s = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
-
-    float kinetic_e = 0.5*PARTICLE_MASS*(v1sq+y1dotsq+v2sq+y2dotsq);
-    float potential = 0.5*SPRING_K*(s*s);
+    float kinetic_e = 0.5*PARTICLE_MASS*( vxsq + vysq );
+    float potential = GRAVITY_ACCELERATION * y;
 
     return(kinetic_e + potential);
 }
@@ -453,41 +390,28 @@ void rungekutta_advance(GeneralCoords b,
                         GeneralCoords b1, 
                         GeneralCoords db, 
                         float factor) {
-    b.x1 = b1.x1 + factor*db.x1;
-    b.v1 = b1.v1 + factor*db.v1;
-    b.x2 = b1.x2 + factor*db.x2;
-    b.v2 = b1.v2 + factor*db.v2;    
+    b.x  = b1.x  + factor*db.x;
+    b.vx = b1.vx + factor*db.vx;
+    b.y  = b1.y  + factor*db.y;
+    b.vy = b1.vy + factor*db.vy;    
 }
 
 
 void equation_of_motion(GeneralCoords b, 
                         GeneralCoords db, 
-                        float dt) {
-  //    Lagrangian
-  //       L(x1,x2,v1,v2) = (m/2)*(v1^2+4*x1^2*v1^2)
-  //                      + (m/2)*(v2^2+4*x2^2*v2^2)
-  //                      - (k/2)*s^2
-  //    where
-  //        s = sqrt(dx^2+dy^2), dx=x1-x2, dy=x1^2+x2^2+2
+                        float dt) 
+{
   // 
-    float x1 = b.x1;
-    float v1 = b.v1;
-    float x2 = b.x2;
-    float v2 = b.v2;
+  //     dx/dt = vx    
+  //     dy/dt = vy    
+  //    dvx/dt = 0     
+  //    dvy/dt = -g    
+  // 
 
-    float dx   = x1 - x2;
-    float x1sq = x1*x1;
-    float v1sq = v1*v1;
-    float x2sq = x2*x2;
-    float v2sq = v2*v2;
-    float dy   = x1sq + x2sq + 2;
-    float f1 = OMEGA_SQ*( dx+2*x1*dy);
-    float f2 = OMEGA_SQ*(-dx+2*x2*dy);
-
-    db.x1 = ( v1 ) * dt;
-    db.v1 = ( -1.0/(1+4*x1sq)*(4*x1*v1sq + f1) ) * dt;
-    db.x2 = ( v2 ) * dt;
-    db.v2 = ( -1.0/(1+4*x2sq)*(4*x2*v2sq + f2) ) * dt;
+    db.x  = ( b.vx ) * dt;
+    db.vx = 0.0;
+    db.y  = ( b.vy ) * dt;
+    db.vy = ( -GRAVITY_ACCELERATION ) * dt;
 }
 
 
@@ -503,22 +427,22 @@ void runge_kutta4()
   GeneralCoords db03 = new GeneralCoords();
   GeneralCoords db04 = new GeneralCoords();
 
-  balls_prev.x1 = balls.x1;
-  balls_prev.v1 = balls.v1;
-  balls_prev.x2 = balls.x2;
-  balls_prev.v2 = balls.v2;
+  ball_prev.x  = ball.x;
+  ball_prev.vx = ball.vx;
+  ball_prev.y  = ball.y;
+  ball_prev.vy = ball.vy;
   
   //step 1
-  equation_of_motion(balls_prev, db01, dt);
-  rungekutta_advance(work, balls_prev, db01, 0.5);
+  equation_of_motion(ball_prev, db01, dt);
+  rungekutta_advance(work, ball_prev, db01, 0.5);
 
   //step 2
   equation_of_motion(work, db02, dt);
-  rungekutta_advance(work, balls_prev, db02, 0.5);
+  rungekutta_advance(work, ball_prev, db02, 0.5);
 
   //step 3
   equation_of_motion(work, db03, dt);
-  rungekutta_advance(work, balls_prev, db03, 1.0);
+  rungekutta_advance(work, ball_prev, db03, 1.0);
 
   //step 4
   equation_of_motion(work, db04, dt);
@@ -526,70 +450,76 @@ void runge_kutta4()
   
 
   //the result
-  balls.x1 = balls_prev.x1 + (  
-                        ONE_SIXTH*db01.x1
-                      + ONE_THIRD*db02.x1
-                      + ONE_THIRD*db03.x1
-                      + ONE_SIXTH*db04.x1 
+  ball.x  = ball_prev.x + (  
+                        ONE_SIXTH*db01.x
+                      + ONE_THIRD*db02.x
+                      + ONE_THIRD*db03.x
+                      + ONE_SIXTH*db04.x 
                       );
-  balls.v1 = balls_prev.v1 + (  
-                        ONE_SIXTH*db01.v1
-                      + ONE_THIRD*db02.v1
-                      + ONE_THIRD*db03.v1
-                      + ONE_SIXTH*db04.v1 
+  ball.vx = ball_prev.vx + (  
+                        ONE_SIXTH*db01.vx
+                      + ONE_THIRD*db02.vx
+                      + ONE_THIRD*db03.vx
+                      + ONE_SIXTH*db04.vx 
                       ); 
-  balls.x2 = balls_prev.x2 + (  
-                        ONE_SIXTH*db01.x2
-                      + ONE_THIRD*db02.x2
-                      + ONE_THIRD*db03.x2
-                      + ONE_SIXTH*db04.x2 
+  ball.y  = ball_prev.y + (  
+                        ONE_SIXTH*db01.y
+                      + ONE_THIRD*db02.y
+                      + ONE_THIRD*db03.y
+                      + ONE_SIXTH*db04.y 
                       );
-  balls.v2 = balls_prev.v2 + (  
-                        ONE_SIXTH*db01.v2
-                      + ONE_THIRD*db02.v2
-                      + ONE_THIRD*db03.v2
-                      + ONE_SIXTH*db04.v2 
+  ball.vy = ball_prev.vy + (  
+                        ONE_SIXTH*db01.vy
+                      + ONE_THIRD*db02.vy
+                      + ONE_THIRD*db03.vy
+                      + ONE_SIXTH*db04.vy 
                       ); 
 
 }
 
 
-float parabola_func_upper(float x) {
-  // When you change this, revise its derivative
-  // parabola_func_upper_derivative(), too.
-  float y;
-  y = x*x+1;
-  return(y);
+
+
+float interpol_weight( float val1, float val2 )
+{
+  //
+  // We assume val1 and val2 have opposite signs, i.e., val1*val2 < 0.
+  // 
+  //      |              .
+  //  val2|____________.
+  //      |          . |
+  //      |        .   |
+  //    --+-x1---.-----x2------>x
+  //      |  | .  \
+  //  val1|__.     x=x2-val2*(x1-x2)/(val1-val2) 
+  //      |.         (See below.)
+  //
+  // The equation of the linear function is  
+  //       v(x) = (val1-val2)/(x1-x2) * (x-x2) + val2.
+  // Solving 
+  //       v(x) = 0,
+  // We get
+  //       x = x2-v2*(x1-x2)/(v1-v2)
+  //         = x2+weight*(x1-x2)  
+  //         = weight*x1 + (1-weight)*x2
+  // where 
+  //     weight = val2/(val2-val1)
+  //        
+  return val2 / (val2 - val1);          
 }
 
-float parabola_func_upper_derivative(float x) {
-  // When you change this, revise
-  // parabola_func_upper(), too.
-  float y;
-  y = 2*x;
-  return(y);
+
+
+
+float parabola( float x )
+{
+  return 0.5*(x*x);
 }
 
-
-float parabola_func_lower(float x) {
-  // When you change this, revise its derivative
-  // parabola_func_lower_derivative(), too.
-  float y;
-  y = -x*x-1;
-  return y;
-}
-
-float parabola_func_lower_derivative(float x) {
-  // When you change this, revise
-  // parabola_func_upper(), too.
-  float y = -2*x;
-  return y;
-}
-
-
-void draw(){
+void draw() 
+{
     window[0].background(255);
-    window[0].draw_parabolas();
+    window[0].draw_parabola();
  
     if ( running_state_toggle ) {
       for (int icnt=0; icnt<speed; icnt++) {
@@ -597,44 +527,90 @@ void draw(){
         time += dt;
         step += 1;
         
-        window[1].draw_balls_on_xyplane(balls.x1,balls.x2);    
-
-        float cross_before = balls_prev.v2; // for Poincare
-        float cross_after  = balls.v2;      // cross section.
-        if (cross_after * cross_before < 0 ) {
-          //   |              .
-          // va|____________.
-          //   |          . |
-          //   |        .   |
-          // --+-xb---.-----xa------>x
-          //   |  | .  \
-          // vb|__.     x=xb-vb*(xa-xb)/(va-vb) 
-          //   |.       (See below.)
+        window[1].draw_ball_on_xyplane( ball.x, ball.y );    
+        
+        // For Poincare map.  When the ball reaches at the top of the orbit.      
+        if ( ball_prev.vy > 0 && ball.vy < 0 ) {
+          float weight_before = interpol_weight( ball_prev.vy, ball.vy );
+          float weight_after  = 1 - weight_before;
+          float xx1 = weight_before*ball_prev.x  + weight_after*ball.x;
+          float vv1 = weight_before*ball_prev.vx + weight_after*ball.vx;
+          window[2].draw_poincare_x1_v1( xx1, vv1 );             
+        }
+        
+        // for Relection
+        if ( ball.y < parabola( ball.x ) ) {
+          //         
+          //         [I] incoming (input) vector
+          //        .
+          //       .
+          //      .    [R] reflected (output) vector
+          //      \   /
+          //       \ /
+          //   -----*----> [T] tangential_vector
+          //         \
+          //          \
+          //           [I] incoming (input) vector          
           //
-          // The equation of the linear function is  
-          //       v(x) = (va-vb)/(xa-xb) * (x-xb) + vb.
-          // Solving 
-          //       v(x) = 0,
-          // We get
-          //       x = xb-vb*(xa-xb)/(va-vb)
-          //         = xb+weight*(xa-xb)  [weight=-vb/(va-vb)]
-          //         = weight*xa + (1-weight)*xb
-          float wa = -cross_before/(cross_after-cross_before);
-          float wb = 1 - wa;
-          float xx1 = wa*balls.x1 + wb*balls_prev.x1;
-          float xx2 = wa*balls.x2 + wb*balls_prev.x2;
-          float vv1 = wa*balls.v1 + wb*balls_prev.v1;
-//          window[2].draw_poincare_x1_x2(xx1,xx2);
-          window[2].draw_poincare_x1_v1(xx1,vv1);
-        }        
+          
+          float vecIx = ball.vx;
+          float vecIy = ball.vy;
+          float vecI_amp = sqrt( vecIx * vecIx + vecIy * vecIy );
+          float vecIx_normed = vecIx / vecI_amp;
+          float vecIy_normed = vecIy / vecI_amp;
+          // A tangential vector of parabola y = x^2/2
+          // is given by (vecTx,vecTy) = (1,dy/dx) = (1,x)
+          float dydx = ball.x; // posx_mid;
+          float dydx_sq = dydx * dydx;
+          float vecTx_amp = sqrt(1+dydx_sq);
+          float vecTx_normed = 1.0  / vecTx_amp;
+          float vecTy_normed = dydx / vecTx_amp;
+          float z_component_of_vecI_cross_vecT
+                  = vecIx_normed * vecTy_normed - vecIy_normed * vecTx_normed;
+          if ( z_component_of_vecI_cross_vecT > 0 ) {
+            //   
+            // [Usual case]
+            //   The ball comes from outside (above) the parabola.
+            //
+            //         vecT
+            //   vecI   /
+            //  -----> / 
+            //        /
+            //
+            // [Anomalous case]
+            //   The ball is inside (below) the parabola. This may
+            //   happen when the ball has just being reflected in the
+            //   previous time step. In this case the ball should continue
+            //   running without reflection.
+            //                
+            //         vecT
+            //          /
+            //         / vectI
+            //        /   |
+            //            | 
+            //            |            
+            //           
+            float dot_product_vecI_normed_and_vecT_normed
+                  = vecIx_normed*vecTx_normed + vecIy_normed*vecTy_normed;
+            float angle_between_vecI_normed_and_vecT_normed
+                  = acos( dot_product_vecI_normed_and_vecT_normed );                
+            float angle_for_reflection = 2 * angle_between_vecI_normed_and_vecT_normed;
+            float cos_angle = cos( angle_for_reflection );         
+            float sin_angle = sin( angle_for_reflection );
+            
+            float vecRx = cos_angle * vecIx - sin_angle * vecIy; 
+            float vecRy = sin_angle * vecIx + cos_angle * vecIy;
+            ball.vx = vecRx; 
+            ball.vy = vecRy;      
+          }
+        }
       }
       //if ( step%1000 == 0 ) {
       //  println("step = ", step," time = ", time," energy = ",total_energy());
       //}
     }
 
-    window[0].draw_spring();
-    window[0].draw_balls_on_parabolas(balls.x1,balls.x2);
+    window[0].draw_the_ball( ball.x, ball.y );
     
     String str = "Speed = " + nf(speed) + "  (Type u/d to speed up/down)";
     str += "\nenergy = " + nf(total_energy(),4,3);

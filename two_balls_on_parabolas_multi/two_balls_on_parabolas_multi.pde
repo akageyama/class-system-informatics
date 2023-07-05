@@ -57,11 +57,12 @@
   * 開発履歴
     - Akira Kageyama (kage@port.kobe-u.ac.jp)
     - June 29, 2023
+    - July 05, 2023 ポアンカレマップ（双方向交差→片方向交差）
   
 */
 
 
-final int VERTICAL_MARGIN = 50;
+final int VERTICAL_MARGIN = 75;
 final int HORIZONTAL_MARGIN = 5;
 
 
@@ -409,15 +410,15 @@ void setup() {
 //// 線形（微小）振動
 //    balls = new GeneralCoords( x_coord_max*0.1,0,  // x1 & v1
 //                              -x_coord_max*0.05,0); // x2 & v2
-// 非線形単一周期運動
-    balls = new GeneralCoords( x_coord_max*0.4,0,  // x1 & v1
-                              -x_coord_max*0.4,0); // x2 & v2
+//// 非線形単一周期運動
+//    balls = new GeneralCoords( x_coord_max*0.4,0,  // x1 & v1
+//                              -x_coord_max*0.4,0); // x2 & v2
 //// 比較的単純な非線形運動
 //    balls = new GeneralCoords( x_coord_max*0.4,0,  // x1 & v1
 //                              -x_coord_max*0.2,0); // x2 & v2
-//// 複雑な運動
-//    balls = new GeneralCoords( x_coord_max*0.4,0,  // x1 & v1
-//                              -x_coord_max*0.1,0); // x2 & v2
+// 複雑な運動
+    balls = new GeneralCoords( x_coord_max*0.4,0,  // x1 & v1
+                              -x_coord_max*0.1,0); // x2 & v2
 
     balls_prev = new GeneralCoords();                             
 }
@@ -601,7 +602,7 @@ void draw(){
 
         float cross_before = balls_prev.v2; // for Poincare
         float cross_after  = balls.v2;      // cross section.
-        if (cross_after * cross_before < 0 ) {
+        if (cross_before < 0 &&  cross_after > 0 ) {
           //   |              .
           // va|____________.
           //   |          . |
