@@ -351,21 +351,34 @@ void setup()
     header.title("  Path plot of (x,y)", CENTER);
     header.title("Poincare map of (x,vx) on vy=0  ", RIGHT);
 
-//    // カオス的
-//    ball = new GeneralCoords( x_coord_max*0.2, -2.2,  // x & vx
-//                              x_coord_max*0.7, -1.1); // y & vy
-//
-//    // 自由落下。カオス的
-//    ball = new GeneralCoords( x_coord_max*0.2, 0.0,  // x & vx
+
+    // 自由落下。カオス的
+    ball = new GeneralCoords( x_coord_max*0.2, 0.0,  // x & vx
+                              x_coord_max*0.7, 0.0 ); // y & vy
+//                              
+//    // 自由落下。
+//    ball = new GeneralCoords( x_coord_max*0.01, 0.0,  // x & vx
 //                              x_coord_max*0.7, 0.0 ); // y & vy
 //
 //    // 自由落下2。カオス的
 //    ball = new GeneralCoords( x_coord_max*0.6, 0.0,  // x & vx
 //                              x_coord_max*0.7, 0.0 ); // y & vy
 //
-    // 自由落下3。カオス的
-    ball = new GeneralCoords( x_coord_max*0.1, 0.0,  // x & vx
-                              x_coord_max*0.7, 0.0 ); // y & vy
+//    // y軸上の自由落下。誤差の拡大
+//     ball = new GeneralCoords( x_coord_max*0.0, 0.0,  // x & vx
+//                               x_coord_max*0.7, 0.0 ); // y & vy
+//
+//    // 自由落下3。カオス的
+//    ball = new GeneralCoords( x_coord_max*0.1, 0.0,  // x & vx
+//                              x_coord_max*0.7, 0.0 ); // y & vy
+//
+//    // 水平方向打ち出し。往復運動
+//    ball = new GeneralCoords( x_coord_max*0.0, 3.1,  // x & vx
+//                              x_coord_max*0.5, 0.0 ); // y & vy
+//    // カオス的。二重包路線
+//    ball = new GeneralCoords( x_coord_max*0.2, -2.2,  // x & vx
+//                              x_coord_max*0.7, -1.1); // y & vy
+
 
     ball_prev = new GeneralCoords();                             
 }
