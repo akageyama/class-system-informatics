@@ -5,10 +5,11 @@
   * シミュレーションモデル  
     - 1つの質点が重力を受けて落下する。
     - 下方には下の放物線がある。
-        y = x^2 / 2
+        y = a * x^2
     - 質点は放物線に衝突すると反射する。
   
   * 変数の定義
+    - 放物線の係数 a は PARABOLA_FACTOR_A
     - 質点の位置を (x,y) とし、速度を(vx,vy) とする。
     - 一般化座標(x,y,vx,vy)をGeneralCoordsクラスにまとめた。
   
@@ -44,7 +45,7 @@
     
   * 開発履歴
     - Akira Kageyama (kage@port.kobe-u.ac.jp)
-    - July 05, 2023
+    - July 08, 2023
   
 */
 
@@ -52,6 +53,7 @@
 final int VERTICAL_MARGIN = 75;
 final int HORIZONTAL_MARGIN = 5;
 
+final float PARABOLA_FACTOR_A = 0.5;
 
 float time = 0.0;
 int step = 0;
@@ -352,33 +354,32 @@ void setup()
     header.title("Poincare map of (x,vx) on vy=0  ", RIGHT);
 
 
-    // 自由落下。カオス的
-    ball = new GeneralCoords( x_coord_max*0.2, 0.0,  // x & vx
-                              x_coord_max*0.7, 0.0 ); // y & vy
+    // 自由落下。下に凸な包路線
+    ball = new GeneralCoords( 1.0, 0.0,  // x & vx
+                              1.5, 0.0 ); // y & vy
 //                              
-//    // 自由落下。
-//    ball = new GeneralCoords( x_coord_max*0.01, 0.0,  // x & vx
-//                              x_coord_max*0.7, 0.0 ); // y & vy
+//    // 自由落下2。上に凸な包路線
+//    ball = new GeneralCoords( 0.1, 0.0,  // x & vx
+//                              1.5, 0.0 ); // y & vy
 //
-//    // 自由落下2。カオス的
-//    ball = new GeneralCoords( x_coord_max*0.6, 0.0,  // x & vx
-//                              x_coord_max*0.7, 0.0 ); // y & vy
-//
-//    // y軸上の自由落下。誤差の拡大
-//     ball = new GeneralCoords( x_coord_max*0.0, 0.0,  // x & vx
-//                               x_coord_max*0.7, 0.0 ); // y & vy
-//
-//    // 自由落下3。カオス的
-//    ball = new GeneralCoords( x_coord_max*0.1, 0.0,  // x & vx
-//                              x_coord_max*0.7, 0.0 ); // y & vy
-//
+//    // 投げあげ。往復運動
+//    ball = new GeneralCoords( -1.0, 3.0,  // x & vx
+//                               1.0, 3.0 ); // y & vy
 //    // 水平方向打ち出し。往復運動
-//    ball = new GeneralCoords( x_coord_max*0.0, 3.1,  // x & vx
-//                              x_coord_max*0.5, 0.0 ); // y & vy
-//    // カオス的。二重包路線
-//    ball = new GeneralCoords( x_coord_max*0.2, -2.2,  // x & vx
-//                              x_coord_max*0.7, -1.1); // y & vy
-
+//    ball = new GeneralCoords( 0.0, 3.1,  // x & vx
+//                              1.0, 0.0 ); // y & vy
+//
+//    // 自由落下。二重包路線
+//    ball = new GeneralCoords( 0.2, 0,  // x & vx
+//                              1.5, 0); // y & vy
+//
+//    // y軸上の自由落下。 
+//    //     PARABOLA_FACTOR_A = 0.5 の場合、不安定 （H=1.5)
+//    //     PARABOLA_FACTOR_A = 0.17 の場合、安定  （4*a*H > 1.0）
+//    //     PARABOLA_FACTOR_A = 0.15 の場合、不安定 （4*a*H < 1.0）
+//     ball = new GeneralCoords( 0.001, 0.0,  // x & vx
+//                               1.5, 0.0 ); // y & vy
+//
 
     ball_prev = new GeneralCoords();                             
 }
@@ -526,8 +527,15 @@ float interpol_weight( float val1, float val2 )
 
 float parabola( float x )
 {
-  return 0.5*(x*x);
+  return PARABOLA_FACTOR_A*(x*x);
 }
+
+
+float parabola_derivative( float x )
+{
+  return 2*PARABOLA_FACTOR_A*x;
+}
+
 
 void draw() 
 {
@@ -573,7 +581,7 @@ void draw()
           float vecIy_normed = vecIy / vecI_amp;
           // A tangential vector of parabola y = x^2/2
           // is given by (vecTx,vecTy) = (1,dy/dx) = (1,x)
-          float dydx = ball.x; // posx_mid;
+          float dydx = parabola_derivative( ball.x ); 
           float dydx_sq = dydx * dydx;
           float vecTx_amp = sqrt(1+dydx_sq);
           float vecTx_normed = 1.0  / vecTx_amp;
