@@ -61,7 +61,7 @@ let x_coord_min = -2.0;
 let x_coord_max = 2.0;
 let y_coord_min = -2.0;
 let y_coord_max = 2.0;
-let speedz = 100;
+let speedz = 20;
 let ball;
 let ball_prev;
 let PARTICLE_MASS = 1.0;

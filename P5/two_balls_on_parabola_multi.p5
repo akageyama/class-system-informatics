@@ -69,7 +69,7 @@ let dt = 0.001;
 let running_state_toggle = true;
 let x_coord_min = -3.0;
 let x_coord_max = 3.0;
-let speedz = 100;
+let speedz = 20;
 let balls;
 let balls_prev;
 let SPRING_K = 1.0;
