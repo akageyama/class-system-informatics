@@ -45,8 +45,8 @@
     
   * 開発履歴
     - Akira Kageyama (kage@port.kobe-u.ac.jp)
-    - a_ball_bounce_on_parabola_multi.pde からp5に変換
-    - July 08, 2023
+    - July 08, 2023: a_ball_bounce_on_parabola_multi.pde からp5に変換
+    - June 20, 2024: Refactoring.
   
 */
 

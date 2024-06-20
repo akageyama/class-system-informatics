@@ -59,8 +59,10 @@
     - June 29, 2023
     - July 05, 2023 ポアンカレマップ（双方向交差→片方向交差）
     - July 08, 2023 Processingコードから変換
+    - June 20, 2024 Refactoring
   
 */
+
 let VERTICAL_MARGIN = 75;
 let HORIZONTAL_MARGIN = 5;
 let timez = 0.0;
@@ -75,13 +77,16 @@ let balls_prev;
 let SPRING_K = 1.0;
 let PARTICLE_MASS = 1.0;
 let OMEGA_SQ = SPRING_K / PARTICLE_MASS;
-class Windowz {
+
+class Windowz 
+{
     constructor(xmin, ymin, xmax, ymax) {
         this.xmin = xmin;
         this.ymin = ymin;
         this.xmax = xmax;
         this.ymax = ymax;
     }
+
     background(gray) {
         noStroke();
         fill(gray);
@@ -92,6 +97,7 @@ class Windowz {
             this.ymax - this.ymin
         );
     }
+
     frame(gray) {
         stroke(gray);
         noFill();
@@ -102,9 +108,11 @@ class Windowz {
             this.ymax - this.xmin
         );
     }
+
     translate_origin() {
         translate((this.xmax + this.xmin) / 2, (this.ymax + this.ymin) / 2);
-    } //
+    }
+    
     // |<---------width--------->|
     // .                         .
     // .                         .
@@ -121,11 +129,13 @@ class Windowz {
     // +-------------------------+ ... ---
     // (x,y) = physical unit coords.
     // (map(x),map(y)) = pixel coords.
+    //
     mapx(x) {
         let scale =
             (this.xmax - this.xmin) / (x_coord_max - x_coord_min);
         return x * scale;
     }
+
     mapy(y) {
         let y_coord_max = parabola_func_upper(x_coord_max);
         let y_coord_min = -y_coord_max;
@@ -133,6 +143,7 @@ class Windowz {
             (this.ymax - this.ymin) / (y_coord_max - y_coord_min);
         return -scale * y; // reverse up/down direction.
     }
+
     draw_axes_x1_x2() {
         push();
         this.translate_origin();
@@ -141,6 +152,7 @@ class Windowz {
         line(0, this.mapx(x_coord_min), 0, this.mapx(x_coord_max));
         pop();
     }
+
     draw_balls_on_xyplane(x1, x2) {
         push();
         this.translate_origin();
@@ -148,6 +160,7 @@ class Windowz {
         point(this.mapx(x1), -this.mapx(x2));
         pop();
     }
+
     draw_parabolas() {
         push();
         this.translate_origin();
@@ -189,6 +202,7 @@ class Windowz {
         }
         pop();
     }
+
     draw_balls_on_parabolas(x1, x2) {
         push();
         this.translate_origin();
@@ -201,6 +215,7 @@ class Windowz {
         ellipse(this.mapx(x2), this.mapy(y2), 10, 10);
         pop();
     }
+
     draw_poincare_x1_x2(x1, x2) {
         push();
         this.translate_origin();
@@ -208,6 +223,7 @@ class Windowz {
         point(this.mapx(x1), -this.mapx(x2));
         pop();
     }
+
     draw_poincare_x1_v1(x1, v1) {
         let factor = 0.8; // trial and errors.
         push();
@@ -216,6 +232,7 @@ class Windowz {
         point(factor * this.mapx(x1), -factor * this.mapx(v1));
         pop();
     }
+
     draw_spring() {
         push();
         this.translate_origin();
@@ -227,6 +244,7 @@ class Windowz {
         line(this.mapx(x1), this.mapy(y1), this.mapx(x2), this.mapy(y2));
         pop();
     }
+
     label_x_axis(msg) {
         push();
         this.translate_origin();
@@ -235,6 +253,7 @@ class Windowz {
         text(msg, this.mapx(x_coord_max), -6);
         pop();
     }
+
     label_y_axis(msg) {
         push();
         this.translate_origin();
@@ -244,11 +263,14 @@ class Windowz {
         pop();
     }
 }
-class Header {
+
+class Header 
+{
     erase(gray) {
         fill(gray);
         rect(0, 0, width, VERTICAL_MARGIN);
     }
+
     title(msg, rlc) {
         // rlc = RIGHT or LEFT or CENTER
         noStroke();
@@ -259,12 +281,15 @@ class Header {
         pop();
     }
 }
-class Footer {
+
+class Footer 
+{
     erase(gray) {
         noStroke();
         fill(gray);
         rect(0, height - VERTICAL_MARGIN, width, VERTICAL_MARGIN);
     }
+
     title(msg, rlc) {
         // rlc = RIGHT or LEFT or CENTER
         noStroke();
@@ -286,16 +311,18 @@ let header = new Header();
 let footer = new Footer();
 let windowz;
 
-class GeneralCoords {
+class GeneralCoords 
+{
     constructor(x1, v1, x2, v2) {
         this.x1 = x1;
         this.v1 = v1;
         this.x2 = x2;
         this.v2 = v2;
-    } /*constructor( ) { this.x1= 0.0; this.v1= 0.0; this.x2= 0.0; this.v2= 0.0; } */ /*constructor( copy ) { this.x1= copy . x1; this.v1= copy . v1; this.x2= copy . x2; this.v2= copy . v2; } */
+    } 
 }
 
-function setup() {
+function setup() 
+{
     createCanvas(1200, 600);
     background(255);
     frameRate(60); // windowz = new Windowz[3];
@@ -326,6 +353,7 @@ function setup() {
     //   +----                       y=height
     let y1 = VERTICAL_MARGIN;
     let y2 = height - VERTICAL_MARGIN;
+
     windowz = new Array(3);
     windowz[0] = new Windowz(x0l, y1, x0r, y2);
     windowz[1] = new Windowz(x1l, y1, x1r, y2);
@@ -357,11 +385,13 @@ function setup() {
         x_coord_max * 0.4,
         0, // x1 & v1
         -x_coord_max * 0.1,
-        0
-    ); // x2 & v2
+        0  // x2 & v2
+    );
     balls_prev = new GeneralCoords();
 }
-function total_energy() {
+
+function total_energy() 
+{
     let x1 = balls.x1;
     let v1 = balls.v1;
     let x2 = balls.x2;
@@ -379,13 +409,17 @@ function total_energy() {
     let potential = 0.5 * SPRING_K * (s * s);
     return kinetic_e + potential;
 }
-function rungekutta_advance(b, b1, db, factor) {
+
+function rungekutta_advance(b, b1, db, factor) 
+{
     b.x1 = b1.x1 + factor * db.x1;
     b.v1 = b1.v1 + factor * db.v1;
     b.x2 = b1.x2 + factor * db.x2;
     b.v2 = b1.v2 + factor * db.v2;
 }
-function equation_of_motion(b, db, dt) {
+
+function equation_of_motion(b, db, dt) 
+{
     //    Lagrangian
     //       L(x1,x2,v1,v2) = (m/2)*(v1^2+4*x1^2*v1^2)
     //                      + (m/2)*(v2^2+4*x2^2*v2^2)
@@ -410,7 +444,9 @@ function equation_of_motion(b, db, dt) {
     db.x2 = v2 * dt;
     db.v2 = (-1.0 / (1 + 4 * x2sq)) * (4 * x2 * v2sq + f2) * dt;
 }
-function runge_kutta4() {
+
+function runge_kutta4() 
+{
     let ONE_SIXTH = 1.0 / 6.0;
     let ONE_THIRD = 1.0 / 3.0;
     let work = new GeneralCoords();
@@ -421,14 +457,16 @@ function runge_kutta4() {
     balls_prev.x1 = balls.x1;
     balls_prev.v1 = balls.v1;
     balls_prev.x2 = balls.x2;
-    balls_prev.v2 = balls.v2; //step 1
-    equation_of_motion(balls_prev, db01, dt);
-    rungekutta_advance(work, balls_prev, db01, 0.5); //step 2
-    equation_of_motion(work, db02, dt);
-    rungekutta_advance(work, balls_prev, db02, 0.5); //step 3
-    equation_of_motion(work, db03, dt);
-    rungekutta_advance(work, balls_prev, db03, 1.0); //step 4
-    equation_of_motion(work, db04, dt); //the result
+    balls_prev.v2 = balls.v2;
+    equation_of_motion(balls_prev, db01, dt);  // step 1
+    rungekutta_advance(work, balls_prev, db01, 0.5);
+    equation_of_motion(work, db02, dt);        // step 2
+    rungekutta_advance(work, balls_prev, db02, 0.5); 
+    equation_of_motion(work, db03, dt);        // step 3
+    rungekutta_advance(work, balls_prev, db03, 1.0); 
+    equation_of_motion(work, db04, dt);        // step 4
+
+    // Weighted sum
     balls.x1 =
         balls_prev.x1 +
         (ONE_SIXTH * db01.x1 +
@@ -454,34 +492,44 @@ function runge_kutta4() {
             ONE_THIRD * db03.v2 +
             ONE_SIXTH * db04.v2);
 }
-function parabola_func_upper(x) {
+
+function parabola_func_upper(x) 
+{
     // When you change this, revise its derivative
     // parabola_func_upper_derivative(), too.
     let y;
     y = x * x + 1;
     return y;
 }
-function parabola_func_upper_derivative(x) {
+
+function parabola_func_upper_derivative(x) 
+{
     // When you change this, revise
     // parabola_func_upper(), too.
     let y;
     y = 2 * x;
     return y;
 }
-function parabola_func_lower(x) {
+
+function parabola_func_lower(x) 
+{
     // When you change this, revise its derivative
     // parabola_func_lower_derivative(), too.
     let y;
     y = -x * x - 1;
     return y;
 }
-function parabola_func_lower_derivative(x) {
+
+function parabola_func_lower_derivative(x) 
+{
     // When you change this, revise
     // parabola_func_upper(), too.
     let y = -2 * x;
     return y;
 }
-function draw() {
+
+function draw() 
+{
     windowz[0].background(255);
     windowz[0].draw_parabolas();
     if (running_state_toggle) {
@@ -517,12 +565,15 @@ function draw() {
                 let vv1 = wa * balls.v1 + wb * balls_prev.v1; //          windowz[2].draw_poincare_x1_x2(xx1,xx2);
                 windowz[2].draw_poincare_x1_v1(xx1, vv1);
             }
-        } //if ( step%1000 == 0 ) {
+        } 
+        //if ( step%1000 == 0 ) {
         //  println("step = ", step," time = ", timez," energy = ",total_energy());
         //}
     }
+
     windowz[0].draw_spring();
     windowz[0].draw_balls_on_parabolas(balls.x1, balls.x2);
+
     let str = "Speed = " + nf(speedz) + "  (Type u/d to speed up/down)";
     str += "\nenergy = " + nf(total_energy(), 4, 3);
     str += "\nt = " + nf(timez, 6, 3);
@@ -530,10 +581,14 @@ function draw() {
     footer.erase(255);
     footer.title(str, CENTER);
 }
-function mousePressed() {
+
+function mousePressed() 
+{
     running_state_toggle = !running_state_toggle;
 }
-function keyReleased() {
+
+function keyReleased() 
+{
     switch (key) {
         case "s":
             running_state_toggle = !running_state_toggle;

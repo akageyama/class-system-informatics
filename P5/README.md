@@ -22,3 +22,5 @@
 * 開発履歴
     - Akira Kageyama (kage@port.kobe-u.ac.jp)
     - July 08, 2023
+    - Revised on June 20, 2024
+
