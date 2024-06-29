@@ -1,9 +1,9 @@
 # 講義「システム情報学概論」サンプルコード
 
 
-使用言語：[Processing](https://processing.org)
+使用言語：[p5.js](https://p5js.org) および [Processing](https://processing.org)
 
-* 2つのサンプルコード（2つのディレクトリ）
+* 2つのサンプルコード
 	*  `two_balls_on_parabolas_multi`
 		* 2つの質点（質量同じ）がそれぞれ別の放物線の上を摩擦なしで滑る。
 	* `a_ball_bounce_on_parabola_multi`
@@ -40,3 +40,4 @@
   * 開発履歴
     - Akira Kageyama (kage@port.kobe-u.ac.jp)
     - July 06, 2023
+    - Revise June 29, 2024
