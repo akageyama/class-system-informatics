@@ -448,25 +448,24 @@ function setup()
         "  Two balls on parabolas\n  Particle 1 (upper) and 2 (lower)", LEFT
     );
     header.title("  Path plot of (x1,x2)", CENTER);
-    header.title("Poincare map of (x1,v1) on v2=0  ", RIGHT); //// 線形（微小）単振動
+    header.title("Poincare map of (x1,v1) on v2=0  ", RIGHT); 
+    //// Linear (small amplitude) oscillation 線形（微小）単振動
     //      balls = new GeneralCoords( x_coord_max*0.05,0,  // x1 & v1
     //                                 x_coord_max*0.05,0); // x2 & v2
-    //// 線形（微小）振動
+    //// Linear (small amplituide) oscillation 線形（微小）振動
     //    balls = new GeneralCoords( x_coord_max*0.1,0,  // x1 & v1
     //                              -x_coord_max*0.05,0); // x2 & v2
-    //// 非線形単一周期運動
+    //// Nonlinear periodic motion 非線形単一周期運動
     //    balls = new GeneralCoords( x_coord_max*0.4,0,  // x1 & v1
     //                              -x_coord_max*0.4,0); // x2 & v2
-    //// 比較的単純な非線形運動
+    //// Simple nonlinear motion 比較的単純な非線形運動
     //    balls = new GeneralCoords( x_coord_max*0.4,0,  // x1 & v1
     //                              -x_coord_max*0.2,0); // x2 & v2
-    // 複雑な運動
-    balls = new GeneralCoords(
-        x_coord_max * 0.4,
-        0, // x1 & v1
-        -x_coord_max * 0.1,
-        0  // x2 & v2
-    );
+    // A complex motion 複雑な運動
+    balls = new GeneralCoords( x_coord_max * 0.4,  // Initial x1
+                                             0.0,  // Initial v1
+                              -x_coord_max * 0.1,  // Initial x2
+                                             0.0); // Initial v2
     balls_prev = new GeneralCoords();
 }
 
