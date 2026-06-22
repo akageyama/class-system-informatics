@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Two balls on parabolas - mobile UI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<style>
+:root {
+  --bg: #f6f7fb;
+  --card: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --border: #d1d5db;
+  --accent: #2563eb;
+  --accent2: #16a34a;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow-y: auto;
+  -webkit-text-size-adjust: 100%;
+}
+.app {
+  width: min(1200px, 100%);
+  margin: 0 auto;
+  padding: 10px;
+}
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  padding: 10px;
+  margin-bottom: 10px;
+}
+h1 {
+  font-size: clamp(18px, 4.5vw, 26px);
+  margin: 4px 2px 10px;
+  line-height: 1.2;
+}
+.controls {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 8px;
+  align-items: end;
+}
+.group {
+  grid-column: span 12;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.field {
+  grid-column: span 6;
+  min-width: 0;
+}
+.field.wide { grid-column: span 12; }
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 3px 2px;
+}
+input, select, button {
+  font: inherit;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+input, select {
+  width: 100%;
+  padding: 9px 10px;
+  background: white;
+}
+input[type="range"] { padding: 0; }
+button {
+  padding: 10px 12px;
+  background: white;
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 44px;
+}
+button.primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  font-weight: 700;
+}
+button.secondary {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+button.danger {
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+.status {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--muted);
+}
+.status div {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 7px 9px;
+}
+#canvasWrap {
+  width: 100%;
+  overflow: visible;
+}
+canvas {
+  display: block;
+  width: 100% !important;
+  height: auto !important;
+  border-radius: 12px;
+  touch-action: auto;
+}
+.note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 8px;
+}
+@media (min-width: 720px) {
+  .field { grid-column: span 3; }
+  .field.wide { grid-column: span 4; }
+  .group { grid-column: span 12; }
+  .status { grid-template-columns: repeat(4, 1fr); }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Two balls on parabolas</h1>
+
+  <div class="panel">
+    <div class="controls">
+      <div class="group">
+        <button id="startBtn" class="primary">Pause</button>
+        <button id="stepBtn" class="secondary">Step</button>
+        <button id="resetBtn">Reset</button>
+        <button id="clearBtn" class="danger">Clear traces</button>
+      </div>
+
+      <div class="field wide">
+        <label for="presetSelect">Initial condition</label>
+        <select id="presetSelect">
+          <option value="complex">Complex motion</option>
+          <option value="small1">Small linear oscillation 1</option>
+          <option value="small2">Small linear oscillation 2</option>
+          <option value="periodic">Nonlinear periodic motion</option>
+          <option value="simple">Simple nonlinear motion</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="x1Input">x1</label>
+        <input id="x1Input" type="number" step="0.01" value="1.2">
+      </div>
+      <div class="field">
+        <label for="v1Input">v1</label>
+        <input id="v1Input" type="number" step="0.01" value="0.0">
+      </div>
+      <div class="field">
+        <label for="x2Input">x2</label>
+        <input id="x2Input" type="number" step="0.01" value="-0.3">
+      </div>
+      <div class="field">
+        <label for="v2Input">v2</label>
+        <input id="v2Input" type="number" step="0.01" value="0.0">
+      </div>
+
+      <div class="field">
+        <label for="speedSlider">Speed: <span id="speedLabel">20</span></label>
+        <input id="speedSlider" type="range" min="1" max="300" step="1" value="20">
+      </div>
+      <div class="field">
+        <label for="springInput">Spring k</label>
+        <input id="springInput" type="number" step="0.1" min="0.1" value="1.0">
+      </div>
+      <div class="field">
+        <label for="dtInput">dt</label>
+        <input id="dtInput" type="number" step="0.0001" min="0.0001" value="0.001">
+      </div>
+      <div class="field">
+        <label for="xRangeInput">Plot range</label>
+        <input id="xRangeInput" type="number" step="0.5" min="1" value="3.0">
+      </div>
+    </div>
+    <div class="note">On smartphones, use the buttons and sliders above. Page scrolling is enabled; touching the graph does not toggle start/stop.</div>
+  </div>
+
+  <div class="panel">
+    <div class="status">
+      <div>time: <span id="timeOut">0.000</span></div>
+      <div>step: <span id="stepOut">0</span></div>
+      <div>energy: <span id="energyOut">0.000</span></div>
+      <div>speed: <span id="speedOut">20</span></div>
+    </div>
+  </div>
+
+  <div id="canvasWrap" class="panel"></div>
+</div>
+
+<script>
+
+/*** --<Comments in English>-- ***
+
+Two particles slide without friction on two parabolas:
+
+    Parabola 1: y = +x^2 + 1
+    Parabola 2: y = -x^2 - 1
+
+The two particles are connected by a linear spring with zero natural length.
+Gravity is ignored.  The generalized coordinates are x1, v1, x2, v2.
+The equations of motion are integrated with the classical fourth-order
+Runge--Kutta method.
+
+This version adds a mobile-friendly user interface:
+    - Start/Pause, Step, Reset, and Clear buttons.
+    - Speed, dt, spring constant, plot range, and initial condition controls.
+    - Responsive layout: three plots are side by side on a PC and stacked
+      vertically on a smartphone.
+    - No mouse/touch toggle, so smartphone page scrolling works normally.
+
+*** --</Comments in English>-- ***/
+
+let timez = 0.0;
+let step = 0;
+let dt = 0.001;
+let running_state_toggle = true;
+let x_coord_min = -3.0;
+let x_coord_max = 3.0;
+let speedz = 20;
+let balls;
+let balls_prev;
+let SPRING_K = 1.0;
+let PARTICLE_MASS = 1.0;
+let OMEGA_SQ = SPRING_K / PARTICLE_MASS;
+let phasePoints = [];
+let poincarePoints = [];
+let maxTracePoints = 20000;
+let panels = [];
+let mobileLayout = false;
+
+class GeneralCoords {
+  constructor(x1=0, v1=0, x2=0, v2=0) {
+    this.x1 = x1;
+    this.v1 = v1;
+    this.x2 = x2;
+    this.v2 = v2;
+  }
+}
+
+class PlotPanel {
+  constructor(x, y, w, h, title, xlabel, ylabel, xmin, xmax, ymin, ymax) {
+    this.x = x; this.y = y; this.w = w; this.h = h;
+    this.title = title; this.xlabel = xlabel; this.ylabel = ylabel;
+    this.xmin = xmin; this.xmax = xmax; this.ymin = ymin; this.ymax = ymax;
+  }
+  mapx(x) { return this.x + (x - this.xmin) / (this.xmax - this.xmin) * this.w; }
+  mapy(y) { return this.y + this.h - (y - this.ymin) / (this.ymax - this.ymin) * this.h; }
+  drawFrame() {
+    noStroke(); fill(255); rect(this.x, this.y, this.w, this.h, 12);
+    stroke(220); noFill(); rect(this.x, this.y, this.w, this.h, 12);
+    fill(30); noStroke(); textSize(14); textAlign(LEFT, TOP);
+    text(this.title, this.x + 10, this.y + 8);
+  }
+  drawAxes() {
+    stroke(180); strokeWeight(1);
+    if (this.ymin < 0 && this.ymax > 0) line(this.x, this.mapy(0), this.x + this.w, this.mapy(0));
+    if (this.xmin < 0 && this.xmax > 0) line(this.mapx(0), this.y, this.mapx(0), this.y + this.h);
+    noStroke(); fill(80); textSize(12);
+    textAlign(RIGHT, BOTTOM); text(this.xlabel, this.x + this.w - 8, this.y + this.h - 6);
+    textAlign(LEFT, TOP); text(this.ylabel, this.x + 8, this.y + 26);
+  }
+  clipStart() {
+    drawingContext.save();
+    drawingContext.beginPath();
+    drawingContext.rect(this.x, this.y, this.w, this.h);
+    drawingContext.clip();
+  }
+  clipEnd() { drawingContext.restore(); }
+}
+
+function presetValues(name) {
+  const xr = x_coord_max;
+  switch (name) {
+    case 'small1': return [xr*0.05, 0.0, xr*0.05, 0.0];
+    case 'small2': return [xr*0.10, 0.0, -xr*0.05, 0.0];
+    case 'periodic': return [xr*0.40, 0.0, -xr*0.40, 0.0];
+    case 'simple': return [xr*0.40, 0.0, -xr*0.20, 0.0];
+    case 'complex':
+    default: return [xr*0.40, 0.0, -xr*0.10, 0.0];
+  }
+}
+
+function setInputs(vals) {
+  document.getElementById('x1Input').value = vals[0].toFixed(3);
+  document.getElementById('v1Input').value = vals[1].toFixed(3);
+  document.getElementById('x2Input').value = vals[2].toFixed(3);
+  document.getElementById('v2Input').value = vals[3].toFixed(3);
+}
+
+function readInputs() {
+  return [
+    Number(document.getElementById('x1Input').value),
+    Number(document.getElementById('v1Input').value),
+    Number(document.getElementById('x2Input').value),
+    Number(document.getElementById('v2Input').value)
+  ];
+}
+
+function applyParameters() {
+  speedz = Number(document.getElementById('speedSlider').value);
+  dt = Number(document.getElementById('dtInput').value);
+  SPRING_K = Number(document.getElementById('springInput').value);
+  PARTICLE_MASS = 1.0;
+  OMEGA_SQ = SPRING_K / PARTICLE_MASS;
+  const range = Number(document.getElementById('xRangeInput').value);
+  x_coord_min = -range;
+  x_coord_max = range;
+  document.getElementById('speedLabel').textContent = speedz;
+}
+
+function resetSimulation(usePreset=true) {
+  applyParameters();
+  let vals;
+  const preset = document.getElementById('presetSelect').value;
+  if (usePreset && preset !== 'custom') {
+    vals = presetValues(preset);
+    setInputs(vals);
+  } else {
+    vals = readInputs();
+  }
+  balls = new GeneralCoords(vals[0], vals[1], vals[2], vals[3]);
+  balls_prev = new GeneralCoords();
+  timez = 0.0;
+  step = 0;
+  phasePoints = [];
+  poincarePoints = [];
+  updateStatus();
+}
+
+function setup() {
+  const c = createCanvas(600, 600);
+  c.parent('canvasWrap');
+  textFont('system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif');
+  frameRate(60);
+  setupUI();
+  resetSimulation(true);
+  resizeCanvasToContainer();
+}
+
+function setupUI() {
+  document.getElementById('startBtn').addEventListener('click', () => {
+    running_state_toggle = !running_state_toggle;
+    document.getElementById('startBtn').textContent = running_state_toggle ? 'Pause' : 'Start';
+  });
+  document.getElementById('stepBtn').addEventListener('click', () => {
+    if (!running_state_toggle) advanceSimulation(1);
+  });
+  document.getElementById('resetBtn').addEventListener('click', () => resetSimulation(true));
+  document.getElementById('clearBtn').addEventListener('click', () => { phasePoints = []; poincarePoints = []; });
+  document.getElementById('presetSelect').addEventListener('change', (e) => {
+    if (e.target.value !== 'custom') {
+      setInputs(presetValues(e.target.value));
+      resetSimulation(true);
+    }
+  });
+  for (const id of ['x1Input','v1Input','x2Input','v2Input']) {
+    document.getElementById(id).addEventListener('change', () => {
+      document.getElementById('presetSelect').value = 'custom';
+      resetSimulation(false);
+    });
+  }
+  for (const id of ['speedSlider','springInput','dtInput','xRangeInput']) {
+    document.getElementById(id).addEventListener('input', () => {
+      applyParameters();
+      if (id === 'xRangeInput') resizeCanvasToContainer();
+      updateStatus();
+    });
+  }
+}
+
+function windowResized() { resizeCanvasToContainer(); }
+
+function resizeCanvasToContainer() {
+  const wrap = document.getElementById('canvasWrap');
+  const w = Math.max(320, Math.floor(wrap.clientWidth - 2));
+  mobileLayout = w < 720;
+  const h = mobileLayout ? Math.floor(w * 2.15) : Math.floor(w * 0.50);
+  resizeCanvas(w, h);
+  makePanels();
+}
+
+function makePanels() {
+  const pad = mobileLayout ? 12 : 10;
+  panels = [];
+  const realYMax = parabola_func_upper(x_coord_max);
+  const realYMin = -realYMax;
+  if (mobileLayout) {
+    const pw = width - 2*pad;
+    const ph = (height - 4*pad) / 3;
+    panels.push(new PlotPanel(pad, pad, pw, ph, 'Real space: two particles and spring', 'x', 'y', x_coord_min, x_coord_max, realYMin, realYMax));
+    panels.push(new PlotPanel(pad, 2*pad + ph, pw, ph, 'Path plot: (x1, x2)', 'x1', 'x2', x_coord_min, x_coord_max, x_coord_min, x_coord_max));
+    panels.push(new PlotPanel(pad, 3*pad + 2*ph, pw, ph, 'Poincare map: (x1, v1) at v2=0', 'x1', 'v1', x_coord_min, x_coord_max, -4, 4));
+  } else {
+    const pw = (width - 4*pad) / 3;
+    const ph = height - 2*pad;
+    panels.push(new PlotPanel(pad, pad, pw, ph, 'Real space', 'x', 'y', x_coord_min, x_coord_max, realYMin, realYMax));
+    panels.push(new PlotPanel(2*pad + pw, pad, pw, ph, 'Path plot (x1, x2)', 'x1', 'x2', x_coord_min, x_coord_max, x_coord_min, x_coord_max));
+    panels.push(new PlotPanel(3*pad + 2*pw, pad, pw, ph, 'Poincare map (x1, v1)', 'x1', 'v1', x_coord_min, x_coord_max, -4, 4));
+  }
+}
+
+function total_energy() {
+  let x1 = balls.x1;
+  let v1 = balls.v1;
+  let x2 = balls.x2;
+  let v2 = balls.v2;
+  let y1 = parabola_func_upper(x1);
+  let y2 = parabola_func_lower(x2);
+  let y1dot = parabola_func_upper_derivative(x1) * v1;
+  let y2dot = parabola_func_lower_derivative(x2) * v2;
+  let s = sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+  let kinetic_e = 0.5 * PARTICLE_MASS * (v1*v1 + y1dot*y1dot + v2*v2 + y2dot*y2dot);
+  let potential = 0.5 * SPRING_K * (s * s);
+  return kinetic_e + potential;
+}
+
+function rungekutta_advance(b, b1, db, factor) {
+  b.x1 = b1.x1 + factor * db.x1;
+  b.v1 = b1.v1 + factor * db.v1;
+  b.x2 = b1.x2 + factor * db.x2;
+  b.v2 = b1.v2 + factor * db.v2;
+}
+
+function equation_of_motion(b, db, dtLocal) {
+  let x1 = b.x1;
+  let v1 = b.v1;
+  let x2 = b.x2;
+  let v2 = b.v2;
+  let dx = x1 - x2;
+  let x1sq = x1 * x1;
+  let v1sq = v1 * v1;
+  let x2sq = x2 * x2;
+  let v2sq = v2 * v2;
+  let dy = x1sq + x2sq + 2;
+  let f1 = OMEGA_SQ * (dx + 2 * x1 * dy);
+  let f2 = OMEGA_SQ * (-dx + 2 * x2 * dy);
+  db.x1 = v1 * dtLocal;
+  db.v1 = (-1.0 / (1 + 4 * x1sq)) * (4 * x1 * v1sq + f1) * dtLocal;
+  db.x2 = v2 * dtLocal;
+  db.v2 = (-1.0 / (1 + 4 * x2sq)) * (4 * x2 * v2sq + f2) * dtLocal;
+}
+
+function runge_kutta4() {
+  let ONE_SIXTH = 1.0 / 6.0;
+  let ONE_THIRD = 1.0 / 3.0;
+  let work = new GeneralCoords();
+  let db01 = new GeneralCoords();
+  let db02 = new GeneralCoords();
+  let db03 = new GeneralCoords();
+  let db04 = new GeneralCoords();
+
+  balls_prev.x1 = balls.x1;
+  balls_prev.v1 = balls.v1;
+  balls_prev.x2 = balls.x2;
+  balls_prev.v2 = balls.v2;
+
+  equation_of_motion(balls_prev, db01, dt);
+  rungekutta_advance(work, balls_prev, db01, 0.5);
+  equation_of_motion(work, db02, dt);
+  rungekutta_advance(work, balls_prev, db02, 0.5);
+  equation_of_motion(work, db03, dt);
+  rungekutta_advance(work, balls_prev, db03, 1.0);
+  equation_of_motion(work, db04, dt);
+
+  balls.x1 = balls_prev.x1 + (ONE_SIXTH*db01.x1 + ONE_THIRD*db02.x1 + ONE_THIRD*db03.x1 + ONE_SIXTH*db04.x1);
+  balls.v1 = balls_prev.v1 + (ONE_SIXTH*db01.v1 + ONE_THIRD*db02.v1 + ONE_THIRD*db03.v1 + ONE_SIXTH*db04.v1);
+  balls.x2 = balls_prev.x2 + (ONE_SIXTH*db01.x2 + ONE_THIRD*db02.x2 + ONE_THIRD*db03.x2 + ONE_SIXTH*db04.x2);
+  balls.v2 = balls_prev.v2 + (ONE_SIXTH*db01.v2 + ONE_THIRD*db02.v2 + ONE_THIRD*db03.v2 + ONE_SIXTH*db04.v2);
+}
+
+function parabola_func_upper(x) { return x*x + 1; }
+function parabola_func_upper_derivative(x) { return 2*x; }
+function parabola_func_lower(x) { return -x*x - 1; }
+function parabola_func_lower_derivative(x) { return -2*x; }
+
+function advanceSimulation(n) {
+  for (let icnt = 0; icnt < n; icnt++) {
+    runge_kutta4();
+    timez += dt;
+    step += 1;
+    phasePoints.push([balls.x1, balls.x2]);
+    if (phasePoints.length > maxTracePoints) phasePoints.shift();
+
+    let cross_before = balls_prev.v2;
+    let cross_after = balls.v2;
+    if (cross_before < 0 && cross_after > 0) {
+      let wa = -cross_before / (cross_after - cross_before);
+      let wb = 1 - wa;
+      let xx1 = wa * balls.x1 + wb * balls_prev.x1;
+      let vv1 = wa * balls.v1 + wb * balls_prev.v1;
+      poincarePoints.push([xx1, vv1]);
+      if (poincarePoints.length > maxTracePoints) poincarePoints.shift();
+    }
+  }
+  updateStatus();
+}
+
+function draw() {
+  background(246, 247, 251);
+  applyParameters();
+  if (running_state_toggle) advanceSimulation(speedz);
+  drawAllPanels();
+}
+
+function drawAllPanels() {
+  for (const p of panels) { p.drawFrame(); p.drawAxes(); }
+  drawRealSpace(panels[0]);
+  drawPhasePlot(panels[1]);
+  drawPoincare(panels[2]);
+}
+
+function drawRealSpace(p) {
+  p.clipStart();
+  stroke(130); strokeWeight(1.5); noFill();
+  let nx = 400;
+  for (let curve = 0; curve < 2; curve++) {
+    beginShape();
+    for (let i = 0; i <= nx; i++) {
+      let x = x_coord_min + (x_coord_max - x_coord_min) * i / nx;
+      let y = (curve === 0) ? parabola_func_upper(x) : parabola_func_lower(x);
+      vertex(p.mapx(x), p.mapy(y));
+    }
+    endShape();
+  }
+  let x1 = balls.x1;
+  let y1 = parabola_func_upper(x1);
+  let x2 = balls.x2;
+  let y2 = parabola_func_lower(x2);
+  stroke(22, 163, 74); strokeWeight(2);
+  line(p.mapx(x1), p.mapy(y1), p.mapx(x2), p.mapy(y2));
+  stroke(50); strokeWeight(1);
+  fill(255, 210, 150); circle(p.mapx(x1), p.mapy(y1), mobileLayout ? 10 : 12);
+  fill(150, 230, 255); circle(p.mapx(x2), p.mapy(y2), mobileLayout ? 10 : 12);
+  p.clipEnd();
+}
+
+function drawPhasePlot(p) {
+  p.clipStart();
+  stroke(255, 105, 105, 120); strokeWeight(1.4);
+  noFill();
+  beginShape();
+  for (const pt of phasePoints) vertex(p.mapx(pt[0]), p.mapy(pt[1]));
+  endShape();
+  noStroke(); fill(220, 38, 38);
+  circle(p.mapx(balls.x1), p.mapy(balls.x2), mobileLayout ? 5 : 6);
+  p.clipEnd();
+}
+
+function drawPoincare(p) {
+  p.clipStart();
+  stroke(0, 150, 0, 170); strokeWeight(2);
+  for (const pt of poincarePoints) point(p.mapx(pt[0]), p.mapy(pt[1]));
+  p.clipEnd();
+}
+
+function updateStatus() {
+  document.getElementById('timeOut').textContent = timez.toFixed(3);
+  document.getElementById('stepOut').textContent = step.toString();
+  document.getElementById('energyOut').textContent = total_energy().toFixed(4);
+  document.getElementById('speedOut').textContent = speedz.toString();
+  document.getElementById('speedLabel').textContent = speedz.toString();
+  document.getElementById('startBtn').textContent = running_state_toggle ? 'Pause' : 'Start';
+}
+
+function keyReleased() {
+  switch (key) {
+    case 's':
+      running_state_toggle = !running_state_toggle;
+      updateStatus();
+      break;
+    case 'u':
+      speedz = Math.min(300, speedz * 2);
+      document.getElementById('speedSlider').value = speedz;
+      updateStatus();
+      break;
+    case 'd':
+      speedz = Math.max(1, Math.floor(speedz / 2));
+      document.getElementById('speedSlider').value = speedz;
+      updateStatus();
+      break;
+  }
+}
+
+</script>
+</body>
+</html>

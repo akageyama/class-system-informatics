@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>A Ball Bounce on Parabola</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<style>
+:root{
+    --bg:#f6f7fb;
+    --card:#ffffff;
+    --text:#111827;
+    --muted:#6b7280;
+    --border:#d1d5db;
+    --accent:#2563eb;
+}
+*{ box-sizing:border-box; }
+html, body{
+    margin:0;
+    padding:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+body{
+    min-height:100vh;
+    overflow-x:hidden;
+}
+.app{
+    width:min(1280px,100%);
+    margin:0 auto;
+    padding:10px;
+}
+.controls{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:10px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.08);
+    display:grid;
+    grid-template-columns:repeat(12,1fr);
+    gap:8px;
+    align-items:end;
+}
+.control-group{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    min-width:0;
+}
+.control-group label{
+    font-size:12px;
+    color:var(--muted);
+    white-space:nowrap;
+}
+.control-group.wide{ grid-column:span 3; }
+.control-group.medium{ grid-column:span 2; }
+.control-group.buttons{ grid-column:span 4; }
+.button-row{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+}
+button, select, input[type="range"]{
+    width:100%;
+    font:inherit;
+}
+button, select{
+    border:1px solid var(--border);
+    background:white;
+    color:var(--text);
+    border-radius:10px;
+    padding:10px 12px;
+    min-height:42px;
+}
+button.primary{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:white;
+    font-weight:600;
+}
+button.small{
+    flex:1 1 90px;
+}
+.status{
+    grid-column:span 3;
+    font-size:13px;
+    line-height:1.35;
+    color:var(--muted);
+    padding:4px 2px;
+}
+#canvas-holder{
+    margin-top:10px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    overflow:hidden;
+    touch-action:pan-y;
+    box-shadow:0 1px 3px rgba(0,0,0,0.08);
+}
+#canvas-holder canvas{
+    touch-action:pan-y;
+}
+.help{
+    margin:8px 4px 0;
+    font-size:12px;
+    color:var(--muted);
+}
+@media (max-width: 760px){
+    .app{ padding:8px; }
+    .controls{ grid-template-columns:repeat(6,1fr); }
+    .control-group.wide{ grid-column:span 6; }
+    .control-group.medium{ grid-column:span 3; }
+    .control-group.buttons{ grid-column:span 6; }
+    .status{ grid-column:span 6; }
+    .button-row button{ min-height:44px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="controls" id="controls">
+    <div class="control-group buttons">
+      <label>Run control</label>
+      <div class="button-row">
+        <button id="toggleButton" class="primary small" type="button">Pause</button>
+        <button id="stepButton" class="small" type="button">Step once</button>
+        <button id="resetButton" class="small" type="button">Reset</button>
+      </div>
+    </div>
+
+    <div class="control-group wide">
+      <label for="presetSelect">Initial condition</label>
+      <select id="presetSelect">
+        <option value="freefall" selected>Free fall: x=1, vx=0, y=1.5, vy=0</option>
+        <option value="freefall_axis">Near y-axis: x=0.001, vx=0, y=1.5, vy=0</option>
+        <option value="throwup">Throw upward: x=-1, vx=3, y=1, vy=3</option>
+        <option value="horizontal">Horizontal launch: x=0, vx=3.1, y=1, vy=0</option>
+        <option value="double_envelope">Double envelope: x=0.2, vx=0, y=1.5, vy=0</option>
+      </select>
+    </div>
+
+    <div class="control-group medium">
+      <label for="speedSlider">Speed: <span id="speedLabel">20</span> RK steps/frame</label>
+      <input id="speedSlider" type="range" min="1" max="300" value="20">
+    </div>
+
+    <div class="control-group medium">
+      <label for="parabolaSlider">Parabola a: <span id="parabolaLabel">0.50</span></label>
+      <input id="parabolaSlider" type="range" min="0.05" max="1.00" step="0.01" value="0.50">
+    </div>
+
+    <div class="status" id="statusText">t = 0.000<br>energy = --<br>step = 0</div>
+  </div>
+
+  <div id="canvas-holder"></div>
+  <div class="help">Canvas tap/click also toggles start/stop. Keyboard shortcuts still work: s = start/stop, u/d = speed up/down.</div>
+</div>
+
+<script>
+/*
+
+  a_ball_bounce_on_parabola_multi.p5
+
+  * シミュレーションモデル
+    - 1つの質点が重力を受けて落下する。
+    - 下方には下の放物線がある。
+        y = a * x^2
+    - 質点は放物線に衝突すると反射する。
+
+  * 変数の定義
+    - 放物線の係数 a は PARABOLA_FACTOR_A
+    - 質点の位置を (x,y) とし、速度を(vx,vy) とする。
+    - 一般化座標(x,y,vx,vy)をGeneralCoordsクラスにまとめた。
+
+  * シミュレーション手法
+    - ラグランジュの運動方程式をequation_of_motion()関数で解く。
+    - 数値積分には古典的な4次ルンゲ・クッタ法を使う。
+    - 座標や物理量はfloat（単精度）浮動小数点数として計算している。
+    - 精度確認のため全エネルギーを計算・表示する。
+
+  * 可視化
+    - P5の線分と円の表示機能を使用。
+    - P5ではy軸（+y）の向きが画面の下方向なのでmap関数で反転し、
+      y軸+yが画面の上方向になるようにしている。
+    - 元のプログラムではP5のウィンドウ画面を3つの領域に分割して使う。
+        +------------+------------+------------+
+        |            |            |            |
+        |     x-y    |    x1-x2   |   x1-v1    |
+        |     plot   |     plot   |  Poincare  |
+        |(real space)|(Every time |    map     |
+        |            |      steps)| (For v2=0) |
+        |            |            |            |
+        +------------+------------+------------+
+
+  * 使用法
+    - 初期条件の設定は setup()関数の以下の部分で変更する。
+        ball = new GeneralCoords( 質点のx座標, 速度のx成分 vx,
+                                  質点のy座標, 速度のy成分 vy )
+    - キーボードのuキーで計算（表示）の加速。
+    - キーボードのdキーで計算（表示）の減速。
+    - キーボードのsキーで計算（表示）の一時停止(stop)と再スタート(start)。
+    - マウスクリックもstart/stopのトグル。
+
+  * この版での変更
+    - スマホで見やすいようにレスポンシブ表示に変更。
+    - start/stop、speed up/down、reset、初期条件選択を画面上のUIから操作できるように変更。
+    - PCでは3画面を横並び、スマホでは縦並びで表示。
+    - 軌跡とポアンカレ写像は配列に保存して再描画する方式に変更。
+
+  * 開発履歴
+    - Akira Kageyama (kage@port.kobe-u.ac.jp)
+    - July 08, 2023: a_ball_bounce_on_parabola_multi.pde からp5に変換
+    - Oct. 07, 2023: コードを少し整形
+
+*/
+
+let PARABOLA_FACTOR_A = 0.5;
+let timez = 0.0;
+let step = 0;
+let dt = 0.001;
+let running_state_toggle = true;
+let x_coord_min = -2.0;
+let x_coord_max = 2.0;
+let y_coord_min = -2.0;
+let y_coord_max = 2.0;
+let vx_coord_min = -8.0;
+let vx_coord_max = 8.0;
+let speedz = 20;
+let ball;
+let ball_prev;
+let PARTICLE_MASS = 1.0;
+let GRAVITY_ACCELERATION = 9.8;
+
+let panels = [];
+let pathPoints = [];
+let poincarePoints = [];
+let maxStoredPoints = 16000;
+let cnv;
+let isMobileLayout = false;
+
+class GeneralCoords {
+    constructor(x = 0.0, vx = 0.0, y = 0.0, vy = 0.0) {
+        this.x = x;
+        this.vx = vx;
+        this.y = y;
+        this.vy = vy;
+    }
+}
+
+class Panel {
+    constructor(x, y, w, h, title, xLabel, yLabel, xmin, xmax, ymin, ymax) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+        this.title = title;
+        this.xLabel = xLabel;
+        this.yLabel = yLabel;
+        this.xmin = xmin;
+        this.xmax = xmax;
+        this.ymin = ymin;
+        this.ymax = ymax;
+        this.marginLeft = 34;
+        this.marginRight = 14;
+        this.marginTop = 30;
+        this.marginBottom = 30;
+    }
+
+    innerX() { return this.x + this.marginLeft; }
+    innerY() { return this.y + this.marginTop; }
+    innerW() { return this.w - this.marginLeft - this.marginRight; }
+    innerH() { return this.h - this.marginTop - this.marginBottom; }
+
+    mapx(x) {
+        return this.innerX() + (x - this.xmin) / (this.xmax - this.xmin) * this.innerW();
+    }
+
+    mapy(y) {
+        return this.innerY() + this.innerH() - (y - this.ymin) / (this.ymax - this.ymin) * this.innerH();
+    }
+
+    contains(px, py) {
+        return px >= this.x && px <= this.x + this.w && py >= this.y && py <= this.y + this.h;
+    }
+
+    drawFrame() {
+        push();
+        noStroke();
+        fill(255, 255, 252);
+        rect(this.x, this.y, this.w, this.h, 12);
+        stroke(210);
+        noFill();
+        rect(this.x, this.y, this.w, this.h, 12);
+
+        fill(30);
+        noStroke();
+        textSize(13);
+        textAlign(LEFT, CENTER);
+        text(this.title, this.x + 12, this.y + 16);
+        pop();
+    }
+
+    drawAxes() {
+        push();
+        stroke(180);
+        strokeWeight(1);
+        if (this.ymin <= 0 && this.ymax >= 0) {
+            line(this.mapx(this.xmin), this.mapy(0), this.mapx(this.xmax), this.mapy(0));
+        }
+        if (this.xmin <= 0 && this.xmax >= 0) {
+            line(this.mapx(0), this.mapy(this.ymin), this.mapx(0), this.mapy(this.ymax));
+        }
+
+        fill(70);
+        noStroke();
+        textSize(11);
+        textAlign(RIGHT, TOP);
+        text(this.xLabel, this.mapx(this.xmax), this.mapy(0) + 4);
+        textAlign(LEFT, TOP);
+        text(this.yLabel, this.mapx(0) + 4, this.mapy(this.ymax));
+        pop();
+    }
+}
+
+function setup() {
+    cnv = createCanvas(100, 100);
+    cnv.parent("canvas-holder");
+    pixelDensity(1);
+    frameRate(60);
+
+    setupControls();
+    resetSimulation();
+    layoutCanvas();
+}
+
+function setupControls() {
+    const toggleButton = document.getElementById("toggleButton");
+    const stepButton = document.getElementById("stepButton");
+    const resetButton = document.getElementById("resetButton");
+    const speedSlider = document.getElementById("speedSlider");
+    const parabolaSlider = document.getElementById("parabolaSlider");
+    const presetSelect = document.getElementById("presetSelect");
+
+    toggleButton.addEventListener("click", () => {
+        running_state_toggle = !running_state_toggle;
+        updateControlLabels();
+    });
+
+    stepButton.addEventListener("click", () => {
+        const wasRunning = running_state_toggle;
+        running_state_toggle = false;
+        advanceSimulation(1);
+        updateControlLabels();
+        redraw();
+        running_state_toggle = wasRunning && false;
+    });
+
+    resetButton.addEventListener("click", () => {
+        resetSimulation();
+        updateControlLabels();
+    });
+
+    speedSlider.addEventListener("input", () => {
+        speedz = parseInt(speedSlider.value, 10);
+        updateControlLabels();
+    });
+
+    parabolaSlider.addEventListener("input", () => {
+        PARABOLA_FACTOR_A = parseFloat(parabolaSlider.value);
+        resetSimulation();
+        updateControlLabels();
+    });
+
+    presetSelect.addEventListener("change", () => {
+        resetSimulation();
+        updateControlLabels();
+    });
+}
+
+function updateControlLabels() {
+    document.getElementById("toggleButton").textContent = running_state_toggle ? "Pause" : "Start";
+    document.getElementById("speedLabel").textContent = String(speedz);
+    document.getElementById("parabolaLabel").textContent = PARABOLA_FACTOR_A.toFixed(2);
+    document.getElementById("statusText").innerHTML =
+        "t = " + nf(timez, 1, 3) +
+        "<br>energy = " + nf(total_energy(), 1, 3) +
+        "<br>step = " + step;
+}
+
+function resetSimulation() {
+    timez = 0.0;
+    step = 0;
+    pathPoints = [];
+    poincarePoints = [];
+
+    const preset = document.getElementById("presetSelect")?.value || "freefall";
+    if (preset === "freefall_axis") {
+        ball = new GeneralCoords(0.001, 0.0, 1.5, 0.0);
+    } else if (preset === "throwup") {
+        ball = new GeneralCoords(-1.0, 3.0, 1.0, 3.0);
+    } else if (preset === "horizontal") {
+        ball = new GeneralCoords(0.0, 3.1, 1.0, 0.0);
+    } else if (preset === "double_envelope") {
+        ball = new GeneralCoords(0.2, 0.0, 1.5, 0.0);
+    } else {
+        ball = new GeneralCoords(1.0, 0.0, 1.5, 0.0);
+    }
+    ball_prev = new GeneralCoords();
+    pathPoints.push({x: ball.x, y: ball.y});
+    updateControlLabels();
+}
+
+function windowResized() {
+    layoutCanvas();
+}
+
+function layoutCanvas() {
+    const holder = document.getElementById("canvas-holder");
+    const w = Math.max(320, Math.floor(holder.clientWidth || windowWidth));
+    isMobileLayout = w < 760;
+
+    let h;
+    if (isMobileLayout) {
+        h = Math.max(780, Math.floor(w * 2.05));
+    } else {
+        h = Math.max(430, Math.min(660, Math.floor(windowHeight - document.getElementById("controls").offsetHeight - 70)));
+    }
+    resizeCanvas(w, h);
+
+    const gap = 8;
+    panels = [];
+    if (isMobileLayout) {
+        const ph = (height - 4 * gap) / 3;
+        panels.push(new Panel(gap, gap, width - 2 * gap, ph, "Real space: ball and parabola", "x", "y", x_coord_min, x_coord_max, y_coord_min, y_coord_max));
+        panels.push(new Panel(gap, 2 * gap + ph, width - 2 * gap, ph, "Path plot of (x,y)", "x", "y", x_coord_min, x_coord_max, y_coord_min, y_coord_max));
+        panels.push(new Panel(gap, 3 * gap + 2 * ph, width - 2 * gap, ph, "Poincare map of (x,vx) on vy = 0", "x", "vx", x_coord_min, x_coord_max, vx_coord_min, vx_coord_max));
+    } else {
+        const pw = (width - 4 * gap) / 3;
+        panels.push(new Panel(gap, gap, pw, height - 2 * gap, "Real space: ball and parabola", "x", "y", x_coord_min, x_coord_max, y_coord_min, y_coord_max));
+        panels.push(new Panel(2 * gap + pw, gap, pw, height - 2 * gap, "Path plot of (x,y)", "x", "y", x_coord_min, x_coord_max, y_coord_min, y_coord_max));
+        panels.push(new Panel(3 * gap + 2 * pw, gap, pw, height - 2 * gap, "Poincare map of (x,vx) on vy = 0", "x", "vx", x_coord_min, x_coord_max, vx_coord_min, vx_coord_max));
+    }
+}
+
+function total_energy() {
+    let vx = ball?.vx || 0;
+    let vxsq = vx * vx;
+    let y = ball?.y || 0;
+    let vy = ball?.vy || 0;
+    let vysq = vy * vy;
+    let kinetic_e = 0.5 * PARTICLE_MASS * (vxsq + vysq);
+    let potential = GRAVITY_ACCELERATION * y;
+    return kinetic_e + potential;
+}
+
+function rungekutta_advance(b, b1, db, factor) {
+    b.x = b1.x + factor * db.x;
+    b.vx = b1.vx + factor * db.vx;
+    b.y = b1.y + factor * db.y;
+    b.vy = b1.vy + factor * db.vy;
+}
+
+function equation_of_motion(b, db, dt_local) {
+    //
+    //     dx/dt = vx
+    //     dy/dt = vy
+    //    dvx/dt = 0
+    //    dvy/dt = -g
+    //
+    db.x = b.vx * dt_local;
+    db.vx = 0.0;
+    db.y = b.vy * dt_local;
+    db.vy = -GRAVITY_ACCELERATION * dt_local;
+}
+
+function runge_kutta4() {
+    let ONE_SIXTH = 1.0 / 6.0;
+    let ONE_THIRD = 1.0 / 3.0;
+    let work = new GeneralCoords();
+    let db01 = new GeneralCoords();
+    let db02 = new GeneralCoords();
+    let db03 = new GeneralCoords();
+    let db04 = new GeneralCoords();
+
+    ball_prev.x = ball.x;
+    ball_prev.vx = ball.vx;
+    ball_prev.y = ball.y;
+    ball_prev.vy = ball.vy;
+
+    equation_of_motion(ball_prev, db01, dt);
+    rungekutta_advance(work, ball_prev, db01, 0.5);
+    equation_of_motion(work, db02, dt);
+    rungekutta_advance(work, ball_prev, db02, 0.5);
+    equation_of_motion(work, db03, dt);
+    rungekutta_advance(work, ball_prev, db03, 1.0);
+    equation_of_motion(work, db04, dt);
+
+    ball.x = ball_prev.x + (ONE_SIXTH * db01.x + ONE_THIRD * db02.x + ONE_THIRD * db03.x + ONE_SIXTH * db04.x);
+    ball.vx = ball_prev.vx + (ONE_SIXTH * db01.vx + ONE_THIRD * db02.vx + ONE_THIRD * db03.vx + ONE_SIXTH * db04.vx);
+    ball.y = ball_prev.y + (ONE_SIXTH * db01.y + ONE_THIRD * db02.y + ONE_THIRD * db03.y + ONE_SIXTH * db04.y);
+    ball.vy = ball_prev.vy + (ONE_SIXTH * db01.vy + ONE_THIRD * db02.vy + ONE_THIRD * db03.vy + ONE_SIXTH * db04.vy);
+}
+
+function interpol_weight(val1, val2) {
+    //
+    // We assume val1 and val2 have opposite signs, i.e., val1*val2 < 0.
+    //
+    //      |              .
+    //  val2|____________.
+    //      |          . |
+    //      |        .   |
+    //    --+-x1---.-----x2------>x
+    //      |  | .  \
+    //  val1|__.     x=x2-val2*(x1-x2)/(val1-val2)
+    //      |.         (See below.)
+    //
+    // The equation of the linear function is
+    //       v(x) = (val1-val2)/(x1-x2) * (x-x2) + val2.
+    // Solving
+    //       v(x) = 0,
+    // We get
+    //       x = x2-v2*(x1-x2)/(v1-v2)
+    //         = x2+weight*(x1-x2)
+    //         = weight*x1 + (1-weight)*x2
+    // where
+    //     weight = val2/(val2-val1)
+    //
+    return val2 / (val2 - val1);
+}
+
+function parabola(x) {
+    return PARABOLA_FACTOR_A * (x * x);
+}
+
+function parabola_derivative(x) {
+    return 2 * PARABOLA_FACTOR_A * x;
+}
+
+function advanceSimulation(nsteps) {
+    for (let icnt = 0; icnt < nsteps; icnt++) {
+        runge_kutta4();
+        timez += dt;
+        step += 1;
+
+        pathPoints.push({x: ball.x, y: ball.y});
+        if (pathPoints.length > maxStoredPoints) pathPoints.shift();
+
+        // For Poincare map. When the ball reaches at the top of the orbit.
+        if (ball_prev.vy > 0 && ball.vy < 0) {
+            let weight_before = interpol_weight(ball_prev.vy, ball.vy);
+            let weight_after = 1 - weight_before;
+            let xx1 = weight_before * ball_prev.x + weight_after * ball.x;
+            let vv1 = weight_before * ball_prev.vx + weight_after * ball.vx;
+            poincarePoints.push({x: xx1, vx: vv1});
+            if (poincarePoints.length > maxStoredPoints) poincarePoints.shift();
+        }
+
+        // for Reflection
+        if (ball.y < parabola(ball.x)) {
+            //
+            //         [I] incoming (input) vector
+            //        .
+            //       .
+            //      .    [R] reflected (output) vector
+            //      \   /
+            //       \ /
+            //   -----*----> [T] tangential_vector
+            //         \
+            //          \
+            //           [I] incoming (input) vector
+            //
+            let vecIx = ball.vx;
+            let vecIy = ball.vy;
+            let vecI_amp = sqrt(vecIx * vecIx + vecIy * vecIy);
+            let vecIx_normed = vecIx / vecI_amp;
+            let vecIy_normed = vecIy / vecI_amp;
+
+            // A tangential vector of parabola y = a*x^2
+            // is given by (vecTx,vecTy) = (1,dy/dx) = (1,2*a*x)
+            let dydx = parabola_derivative(ball.x);
+            let dydx_sq = dydx * dydx;
+            let vecTx_amp = sqrt(1 + dydx_sq);
+            let vecTx_normed = 1.0 / vecTx_amp;
+            let vecTy_normed = dydx / vecTx_amp;
+            let z_component_of_vecI_cross_vecT = vecIx_normed * vecTy_normed - vecIy_normed * vecTx_normed;
+
+            if (z_component_of_vecI_cross_vecT > 0) {
+                //
+                // [Usual case]
+                //   The ball comes from outside (above) the parabola.
+                //
+                // [Anomalous case]
+                //   The ball is inside (below) the parabola. This may
+                //   happen when the ball has just being reflected in the
+                //   previous time step. In this case the ball should continue
+                //   running without reflection.
+                //
+                let dot_product_vecI_normed_and_vecT_normed = vecIx_normed * vecTx_normed + vecIy_normed * vecTy_normed;
+                let angle_between_vecI_normed_and_vecT_normed = acos(constrain(dot_product_vecI_normed_and_vecT_normed, -1, 1));
+                let angle_for_reflection = 2 * angle_between_vecI_normed_and_vecT_normed;
+                let cos_angle = cos(angle_for_reflection);
+                let sin_angle = sin(angle_for_reflection);
+                let vecRx = cos_angle * vecIx - sin_angle * vecIy;
+                let vecRy = sin_angle * vecIx + cos_angle * vecIy;
+                ball.vx = vecRx;
+                ball.vy = vecRy;
+
+                // Put the ball just above the boundary after reflection.
+                ball.y = parabola(ball.x) + 1.0e-6;
+            }
+        }
+    }
+}
+
+function drawParabola(panel) {
+    push();
+    stroke(90);
+    strokeWeight(1.5);
+    noFill();
+    beginShape();
+    let nx = 500;
+    for (let i = 0; i <= nx; i++) {
+        let x = x_coord_min + (x_coord_max - x_coord_min) * i / nx;
+        let y = parabola(x);
+        vertex(panel.mapx(x), panel.mapy(y));
+    }
+    endShape();
+    pop();
+}
+
+function drawBall(panel) {
+    push();
+    stroke(50);
+    fill(255, 210, 150);
+    ellipse(panel.mapx(ball.x), panel.mapy(ball.y), isMobileLayout ? 11 : 10, isMobileLayout ? 11 : 10);
+    pop();
+}
+
+function drawPath(panel) {
+    push();
+    noFill();
+    stroke(50, 100, 255, 160);
+    strokeWeight(isMobileLayout ? 1.4 : 1.2);
+    beginShape();
+    for (const p of pathPoints) {
+        vertex(panel.mapx(p.x), panel.mapy(p.y));
+    }
+    endShape();
+    pop();
+}
+
+function drawPoincare(panel) {
+    push();
+    stroke(0, 140, 60, 190);
+    strokeWeight(isMobileLayout ? 3 : 2.2);
+    for (const p of poincarePoints) {
+        point(panel.mapx(p.x), panel.mapy(p.vx));
+    }
+    pop();
+}
+
+function draw() {
+    if (running_state_toggle) {
+        advanceSimulation(speedz);
+    }
+
+    background(246, 247, 251);
+
+    for (const panel of panels) {
+        panel.drawFrame();
+        panel.drawAxes();
+    }
+
+    drawParabola(panels[0]);
+    drawBall(panels[0]);
+    drawPath(panels[1]);
+    drawPoincare(panels[2]);
+
+    updateControlLabels();
+}
+
+function keyReleased() {
+    switch (key) {
+        case "s":
+            running_state_toggle = !running_state_toggle;
+            break;
+        case "u":
+            speedz = min(300, speedz * 2);
+            document.getElementById("speedSlider").value = String(speedz);
+            break;
+        case "d":
+            speedz = max(1, Math.floor(speedz / 2));
+            document.getElementById("speedSlider").value = String(speedz);
+            break;
+    }
+    updateControlLabels();
+}
+</script>
+</body>
+</html>
